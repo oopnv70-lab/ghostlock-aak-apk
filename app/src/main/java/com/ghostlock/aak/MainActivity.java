@@ -4,25 +4,18 @@ import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.ComponentName;
-import android.content.ContentValues;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.IBinder;
-import android.provider.MediaStore;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
-import java.io.OutputStream;
 
 import rikka.shizuku.Shizuku;
 
@@ -219,71 +212,4 @@ public class MainActivity extends Activity {
         });
     }
 
-    private String copyToDownload() throws Exception {
-        String fileName = "ghostlock_preload.so";
-        InputStream is = getContentResolver().openInputStream(selectedSoUri);
-        if (is == null) return null;
-
-        if (Build.VERSION.SDK_INT >= 29) {
-            ContentValues values = new ContentValues();
-            values.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName);
-            values.put(MediaStore.MediaColumns.MIME_TYPE, "application/octet-stream");
-            values.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
-            Uri uri = getContentResolver().insert(MediaStore.Files.getContentUri("external"), values);
-            if (uri == null) { is.close(); return null; }
-            OutputStream os = getContentResolver().openOutputStream(uri);
-            byte[] buf = new byte[8192];
-            int n;
-            while ((n = is.read(buf)) != -1) os.write(buf, 0, n);
-            os.close();
-            is.close();
-            return "/sdcard/Download/" + fileName;
-        } else {
-            File dir = new File(Environment.getExternalStoragePublicDirectory(
-                    Environment.DIRECTORY_DOWNLOADS), "GhostLockAAK");
-            if (!dir.exists()) dir.mkdirs();
-            File outFile = new File(dir, fileName);
-            OutputStream os = new FileOutputStream(outFile);
-            byte[] buf = new byte[8192];
-            int n;
-            while ((n = is.read(buf)) != -1) os.write(buf, 0, n);
-            os.close();
-            is.close();
-            return outFile.getAbsolutePath();
-        }
-    }
-
-    private void runCommandInService(String cmd) {
-        ComponentName component = new ComponentName(getPackageName(), CommandService.class.getName());
-        Shizuku.UserServiceArgs args = new Shizuku.UserServiceArgs(component)
-                .daemon(false)
-                .processNameSuffix("ghostlock")
-                .version(1);
-        Shizuku.bindUserService(args, new ServiceConnection() {
-            @Override
-            public void onServiceConnected(ComponentName name, IBinder binder) {
-                log("UserService 已连接");
-                log("正在运行 exploit（设备可能重启，请等待）...");
-                new Thread(() -> {
-                    try {
-                        ICommandService service = ICommandService.Stub.asInterface(binder);
-                        String result = service.runCommand(cmd);
-                        runOnUiThread(() -> log("输出:\n" + result));
-                    } catch (Exception e) {
-                        runOnUiThread(() -> log("服务错误: " + e.getMessage()));
-                    }
-                    runOnUiThread(() -> {
-                        try {
-                            Shizuku.unbindUserService(args, this, true);
-                        } catch (Exception ignored) { }
-                    });
-                }).start();
-            }
-
-            @Override
-            public void onServiceDisconnected(ComponentName name) {
-                log("UserService 已断开");
-            }
-        });
-    }
 }
