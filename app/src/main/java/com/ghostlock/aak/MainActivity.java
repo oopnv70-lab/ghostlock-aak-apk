@@ -20,6 +20,7 @@ import android.widget.Toast;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 
@@ -154,20 +155,68 @@ public class MainActivity extends Activity {
             return;
         }
         try {
-            String src = copyToDownload();
-            if (src == null) {
-                log("复制到 /sdcard/Download 失败");
+            byte[] soBytes = readSelectedFile();
+            if (soBytes == null) {
+                log("读取文件失败");
                 return;
             }
-            log("已复制到: " + src);
+            log("已读取: " + soBytes.length + " 字节");
             String dst = "/data/local/tmp/preload.so";
-            String cmd = "cp " + src + " " + dst + " && chmod 755 " + dst +
-                    " && LD_PRELOAD=" + dst + " /system/bin/sh -c 'echo exploit_triggered'";
+            String cmd = "LD_PRELOAD=" + dst + " /system/bin/sh -c 'echo exploit_triggered'";
             log("正在运行: " + cmd);
-            runCommandInService(cmd);
+            runExploitInService(dst, soBytes, cmd);
         } catch (Exception e) {
             log("错误: " + e.getMessage());
         }
+    }
+
+    private byte[] readSelectedFile() throws Exception {
+        InputStream is = getContentResolver().openInputStream(selectedSoUri);
+        if (is == null) return null;
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        byte[] buf = new byte[8192];
+        int n;
+        while ((n = is.read(buf)) != -1) bos.write(buf, 0, n);
+        is.close();
+        return bos.toByteArray();
+    }
+
+    private void runExploitInService(final String dst, final byte[] soBytes, final String cmd) {
+        ComponentName component = new ComponentName(getPackageName(), CommandService.class.getName());
+        Shizuku.UserServiceArgs args = new Shizuku.UserServiceArgs(component)
+                .daemon(false)
+                .processNameSuffix("ghostlock")
+                .version(1);
+        Shizuku.bindUserService(args, new ServiceConnection() {
+            @Override
+            public void onServiceConnected(ComponentName name, IBinder binder) {
+                log("UserService 已连接");
+                new Thread(() -> {
+                    try {
+                        ICommandService service = ICommandService.Stub.asInterface(binder);
+                        boolean ok = service.writeFile(dst, soBytes);
+                        runOnUiThread(() -> log("写入 " + dst + (ok ? " 成功" : " 失败")));
+                        if (ok) {
+                            runOnUiThread(() -> log("正在运行 exploit（设备可能重启，请等待）..."));
+                            String result = service.runCommand(cmd);
+                            runOnUiThread(() -> log("输出:\n" + result));
+                        }
+                    } catch (Exception e) {
+                        runOnUiThread(() -> log("服务错误: " + e.getMessage()));
+                    }
+                    runOnUiThread(() -> {
+                        try {
+                            Shizuku.unbindUserService(args, this, true);
+                        } catch (Exception ignored) { }
+                    });
+                }).start();
+            }
+
+            @Override
+            public void onServiceDisconnected(ComponentName name) {
+                log("UserService 已断开");
+            }
+        });
     }
 
     private String copyToDownload() throws Exception {

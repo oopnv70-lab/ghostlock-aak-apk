@@ -7,4 +7,6 @@ interface ICommandService {
     void exit() = 1; // Exit method defined by user
 
     String runCommand(String cmd) = 2; // Execute a shell command, return output
+
+    boolean writeFile(String path, byte[] data) = 3; // Write bytes to path (shell privilege)
 }

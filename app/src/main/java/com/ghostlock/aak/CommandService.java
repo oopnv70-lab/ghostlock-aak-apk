@@ -8,6 +8,7 @@ import android.util.Log;
 import androidx.annotation.Keep;
 
 import java.io.BufferedReader;
+import java.io.FileOutputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 
@@ -104,6 +105,27 @@ public class CommandService extends ICommandService.Stub {
             out.append("ERROR: ").append(e).append("\n");
         }
         return out.toString();
+    }
+
+    /**
+     * Write binary data to a file path with shell privilege (uid 2000).
+     * File is created or overwritten, then chmod 755.
+     * Returns true on success, false on error.
+     */
+    @Override
+    public boolean writeFile(String path, byte[] data) {
+        try {
+            FileOutputStream fos = new FileOutputStream(path);
+            fos.write(data);
+            fos.flush();
+            fos.close();
+            Runtime.getRuntime().exec(new String[]{"chmod", "755", path});
+            Log.i(TAG, "writeFile OK: " + path + " (" + data.length + " bytes)");
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, "writeFile FAILED: " + path, e);
+            return false;
+        }
     }
 
     private static String nowMs() {
