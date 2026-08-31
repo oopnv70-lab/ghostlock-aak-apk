@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.GhostLock" parent="android:Theme.Material.Light.DarkActionBar">
+        <item name="android:colorPrimary">#00695C</item>
+        <item name="android:colorPrimaryDark">#004D40</item>
+    </style>
+</resources>
