@@ -197,16 +197,21 @@ public class MainActivity extends Activity {
             @Override
             public void onServiceConnected(ComponentName name, IBinder binder) {
                 log("UserService 已连接");
-                try {
-                    ICommandService service = ICommandService.Stub.asInterface(binder);
-                    String result = service.runCommand(cmd);
-                    log("输出:\n" + result);
-                } catch (Exception e) {
-                    log("服务错误: " + e.getMessage());
-                }
-                try {
-                    Shizuku.unbindUserService(args, this, true);
-                } catch (Exception ignored) { }
+                log("正在运行 exploit（设备可能重启，请等待）...");
+                new Thread(() -> {
+                    try {
+                        ICommandService service = ICommandService.Stub.asInterface(binder);
+                        String result = service.runCommand(cmd);
+                        runOnUiThread(() -> log("输出:\n" + result));
+                    } catch (Exception e) {
+                        runOnUiThread(() -> log("服务错误: " + e.getMessage()));
+                    }
+                    runOnUiThread(() -> {
+                        try {
+                            Shizuku.unbindUserService(args, this, true);
+                        } catch (Exception ignored) { }
+                    });
+                }).start();
             }
 
             @Override
