@@ -67,7 +67,7 @@ public class MainActivity extends Activity {
                 hasPerm = true;
             }
         } else {
-            log("Shizuku service NOT running - start Shizuku first");
+            log("Shizuku 服务未运行 - 请先启动 Shizuku");
         }
         btnPermission.setEnabled(!hasPerm);
         btnPick.setEnabled(hasPerm);
@@ -76,27 +76,27 @@ public class MainActivity extends Activity {
 
     private void requestShizukuPermission() {
         if (Shizuku.isPreV11()) {
-            log("Shizuku too old (pre-v11), not supported");
+            log("Shizuku 版本过旧（低于 v11），不支持");
             return;
         }
         if (Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
-            log("Shizuku permission already granted");
+            log("Shizuku 权限已授权");
             refreshState();
             return;
         }
         if (Shizuku.shouldShowRequestPermissionRationale()) {
-            log("User denied before, requesting again");
+            log("之前被拒绝，重新请求中");
         } else {
-            log("Requesting Shizuku permission...");
+            log("正在请求 Shizuku 权限...");
         }
         Shizuku.requestPermission(REQ_SHIZUKU);
     }
 
     private void onRequestPermissionsResult(int requestCode, int grantResult) {
         if (grantResult == PackageManager.PERMISSION_GRANTED) {
-            log("Shizuku permission GRANTED (uid=" + Shizuku.getUid() + ")");
+            log("Shizuku 权限已授权 (uid=" + Shizuku.getUid() + ")");
         } else {
-            log("Shizuku permission DENIED");
+            log("Shizuku 权限被拒绝");
         }
         refreshState();
     }
@@ -113,7 +113,7 @@ public class MainActivity extends Activity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQ_PICK_SO && resultCode == RESULT_OK && data != null) {
             selectedSoUri = data.getData();
-            log("Selected: " + selectedSoUri.getPath());
+            log("已选择: " + selectedSoUri.getPath());
             refreshState();
         }
     }
@@ -124,27 +124,27 @@ public class MainActivity extends Activity {
 
     private void runExploit() {
         if (selectedSoUri == null) {
-            log("No .so file selected");
+            log("未选择 .so 文件");
             return;
         }
         if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
-            log("Shizuku permission not granted");
+            log("Shizuku 权限未授权");
             return;
         }
         try {
             String src = copyToDownload();
             if (src == null) {
-                log("Failed to copy to /sdcard/Download");
+                log("复制到 /sdcard/Download 失败");
                 return;
             }
-            log("Copied to: " + src);
+            log("已复制到: " + src);
             String dst = "/data/local/tmp/preload.so";
             String cmd = "cp " + src + " " + dst + " && chmod 755 " + dst +
                     " && LD_PRELOAD=" + dst + " /system/bin/sh -c 'echo exploit_triggered'";
-            log("Running: " + cmd);
+            log("正在运行: " + cmd);
             runCommandInService(cmd);
         } catch (Exception e) {
-            log("Error: " + e.getMessage());
+            log("错误: " + e.getMessage());
         }
     }
 
@@ -191,13 +191,13 @@ public class MainActivity extends Activity {
         Shizuku.bindUserService(args, new ServiceConnection() {
             @Override
             public void onServiceConnected(ComponentName name, IBinder binder) {
-                log("UserService connected");
+                log("UserService 已连接");
                 try {
                     ICommandService service = ICommandService.Stub.asInterface(binder);
                     String result = service.runCommand(cmd);
-                    log("Output:\n" + result);
+                    log("输出:\n" + result);
                 } catch (Exception e) {
-                    log("Service error: " + e.getMessage());
+                    log("服务错误: " + e.getMessage());
                 }
                 try {
                     Shizuku.unbindUserService(args, this, true);
@@ -206,7 +206,7 @@ public class MainActivity extends Activity {
 
             @Override
             public void onServiceDisconnected(ComponentName name) {
-                log("UserService disconnected");
+                log("UserService 已断开");
             }
         });
     }

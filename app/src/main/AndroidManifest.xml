@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <application
-        android:label="GhostLock AAK"
+        android:label="GhostLock AAK 启动器"
         android:allowBackup="false"
         android:theme="@style/Theme.GhostLock">
         <activity
