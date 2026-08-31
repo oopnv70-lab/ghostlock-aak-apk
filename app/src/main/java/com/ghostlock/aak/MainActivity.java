@@ -79,6 +79,11 @@ public class MainActivity extends Activity {
             log("Shizuku 版本过旧（低于 v11），不支持");
             return;
         }
+        if (!Shizuku.pingBinder()) {
+            log("Shizuku 服务未运行 - 请先启动 Shizuku");
+            refreshState();
+            return;
+        }
         if (Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
             log("Shizuku 权限已授权");
             refreshState();
