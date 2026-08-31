@@ -60,26 +60,59 @@ public class CommandService extends ICommandService.Stub {
     @Override
     public String runCommand(String cmd) {
         StringBuilder out = new StringBuilder();
+        long startMs = System.currentTimeMillis();
         out.append("uid=").append(Os.getuid()).append(" pid=").append(Os.getpid()).append("\n");
         out.append("$ ").append(cmd).append("\n");
         try {
             Process process = Runtime.getRuntime().exec(new String[]{"sh", "-c", cmd});
+            long childPid = -1;
+            try {
+                // Android 9+ 提供 Process.getPid()，非 Android 上可能抛异常
+                childPid = process.pid();
+                out.append("child_pid=").append(childPid).append("\n");
+            } catch (Throwable ignored) { }
+            out.append("started at ").append(startMs).append("ms\n");
+
+            // 并行读取 stdout 与 stderr，避免单流缓冲区满导致死锁
             BufferedReader reader = new BufferedReader(
                     new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
             BufferedReader errReader = new BufferedReader(
                     new InputStreamReader(process.getErrorStream(), StandardCharsets.UTF_8));
-            String line;
-            while ((line = reader.readLine()) != null) {
-                out.append(line).append("\n");
-            }
-            while ((line = errReader.readLine()) != null) {
-                out.append("[stderr] ").append(line).append("\n");
-            }
+            Thread outThread = new Thread(() -> {
+                String line;
+                try {
+                    while ((line = reader.readLine()) != null) {
+                        synchronized (out) {
+                            out.append("[").append(nowMs()).append("] ").append(line).append("\n");
+                        }
+                    }
+                } catch (Exception ignored) { }
+            });
+            Thread errThread = new Thread(() -> {
+                String line;
+                try {
+                    while ((line = errReader.readLine()) != null) {
+                        synchronized (out) {
+                            out.append("[").append(nowMs()).append("] [stderr] ").append(line).append("\n");
+                        }
+                    }
+                } catch (Exception ignored) { }
+            });
+            outThread.start();
+            errThread.start();
+
             int exit = process.waitFor();
-            out.append("exit=").append(exit).append("\n");
+            outThread.join(5000);
+            errThread.join(5000);
+            long elapsed = System.currentTimeMillis() - startMs;
+            out.append("exit=").append(exit).append(" elapsed=").append(elapsed).append("ms\n");
         } catch (Exception e) {
             out.append("ERROR: ").append(e).append("\n");
         }
         return out.toString();
+    }
+
+    private static String nowMs() {
+        return String.valueOf(System.currentTimeMillis());
     }
 }

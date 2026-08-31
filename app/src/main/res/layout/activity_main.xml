@@ -36,12 +36,27 @@
         android:enabled="false"
         android:layout_marginBottom="16dp" />
 
-    <TextView
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="日志："
-        android:textSize="14sp"
-        android:textStyle="bold" />
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="日志："
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btnCopyLog"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="复制日志"
+            android:textSize="12sp" />
+
+    </LinearLayout>
 
     <ScrollView
         android:layout_width="match_parent"

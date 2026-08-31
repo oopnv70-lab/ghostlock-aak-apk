@@ -1,6 +1,8 @@
 package com.ghostlock.aak;
 
 import android.app.Activity;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.ComponentName;
 import android.content.ContentValues;
 import android.content.Intent;
@@ -14,6 +16,7 @@ import android.os.IBinder;
 import android.provider.MediaStore;
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -31,6 +34,7 @@ public class MainActivity extends Activity {
     private Button btnPermission;
     private Button btnPick;
     private Button btnRun;
+    private Button btnCopyLog;
     private Uri selectedSoUri;
 
     private final Shizuku.OnRequestPermissionResultListener REQUEST_PERMISSION_RESULT_LISTENER =
@@ -45,8 +49,10 @@ public class MainActivity extends Activity {
         btnPermission = findViewById(R.id.btnPermission);
         btnPick = findViewById(R.id.btnPick);
         btnRun = findViewById(R.id.btnRun);
+        btnCopyLog = findViewById(R.id.btnCopyLog);
 
         btnPermission.setOnClickListener(v -> requestShizukuPermission());
+        btnCopyLog.setOnClickListener(v -> copyLog());
         btnPick.setOnClickListener(v -> pickSoFile());
         btnRun.setOnClickListener(v -> runExploit());
 
@@ -125,6 +131,17 @@ public class MainActivity extends Activity {
 
     private void log(String msg) {
         logView.append(msg + "\n");
+    }
+
+    private void copyLog() {
+        String text = logView.getText().toString();
+        if (text.isEmpty()) {
+            Toast.makeText(this, "日志为空", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+        clipboard.setPrimaryClip(ClipData.newPlainText("GhostLock Log", text));
+        Toast.makeText(this, "日志已复制到剪贴板", Toast.LENGTH_SHORT).show();
     }
 
     private void runExploit() {
