@@ -65,12 +65,6 @@ public class CommandService extends ICommandService.Stub {
         out.append("$ ").append(cmd).append("\n");
         try {
             Process process = Runtime.getRuntime().exec(new String[]{"sh", "-c", cmd});
-            long childPid = -1;
-            try {
-                // Android 9+ 提供 Process.getPid()，非 Android 上可能抛异常
-                childPid = process.pid();
-                out.append("child_pid=").append(childPid).append("\n");
-            } catch (Throwable ignored) { }
             out.append("started at ").append(startMs).append("ms\n");
 
             // 并行读取 stdout 与 stderr，避免单流缓冲区满导致死锁
