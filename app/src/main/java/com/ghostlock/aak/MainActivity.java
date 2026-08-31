@@ -1,25 +1,24 @@
 package com.ghostlock.aak;
 
 import android.app.Activity;
+import android.content.ComponentName;
+import android.content.ContentValues;
 import android.content.Intent;
+import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.ParcelFileDescriptor;
 import android.os.Environment;
+import android.os.IBinder;
 import android.provider.MediaStore;
 import android.widget.Button;
 import android.widget.TextView;
-import android.widget.Toast;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
 
 import rikka.shizuku.Shizuku;
 
@@ -33,6 +32,9 @@ public class MainActivity extends Activity {
     private Button btnPick;
     private Button btnRun;
     private Uri selectedSoUri;
+
+    private final Shizuku.OnRequestPermissionResultListener REQUEST_PERMISSION_RESULT_LISTENER =
+            this::onRequestPermissionsResult;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,39 +50,55 @@ public class MainActivity extends Activity {
         btnPick.setOnClickListener(v -> pickSoFile());
         btnRun.setOnClickListener(v -> runExploit());
 
+        Shizuku.addRequestPermissionResultListener(REQUEST_PERMISSION_RESULT_LISTENER);
+        refreshState();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        Shizuku.removeRequestPermissionResultListener(REQUEST_PERMISSION_RESULT_LISTENER);
+    }
+
+    private void refreshState() {
+        boolean hasPerm = false;
         if (Shizuku.pingBinder()) {
-            log("Shizuku service available");
-            if (Shizuku.checkSelfPermission() == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                log("Shizuku permission already granted");
-                btnPermission.setEnabled(false);
-                btnPick.setEnabled(true);
+            if (Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
+                hasPerm = true;
             }
         } else {
             log("Shizuku service NOT running - start Shizuku first");
         }
+        btnPermission.setEnabled(!hasPerm);
+        btnPick.setEnabled(hasPerm);
+        btnRun.setEnabled(hasPerm && selectedSoUri != null);
     }
 
     private void requestShizukuPermission() {
-        if (Shizuku.pingBinder()) {
-            Shizuku.requestPermission(REQ_SHIZUKU);
-            log("Requesting Shizuku permission...");
-        } else {
-            log("Shizuku service not running");
+        if (Shizuku.isPreV11()) {
+            log("Shizuku too old (pre-v11), not supported");
+            return;
         }
+        if (Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
+            log("Shizuku permission already granted");
+            refreshState();
+            return;
+        }
+        if (Shizuku.shouldShowRequestPermissionRationale()) {
+            log("User denied before, requesting again");
+        } else {
+            log("Requesting Shizuku permission...");
+        }
+        Shizuku.requestPermission(REQ_SHIZUKU);
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQ_SHIZUKU) {
-            if (grantResults.length > 0 && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                log("Shizuku permission GRANTED (uid=2000 shell access)");
-                btnPermission.setEnabled(false);
-                btnPick.setEnabled(true);
-            } else {
-                log("Shizuku permission DENIED");
-            }
+    private void onRequestPermissionsResult(int requestCode, int grantResult) {
+        if (grantResult == PackageManager.PERMISSION_GRANTED) {
+            log("Shizuku permission GRANTED (uid=" + Shizuku.getUid() + ")");
+        } else {
+            log("Shizuku permission DENIED");
         }
+        refreshState();
     }
 
     private void pickSoFile() {
@@ -96,7 +114,7 @@ public class MainActivity extends Activity {
         if (requestCode == REQ_PICK_SO && resultCode == RESULT_OK && data != null) {
             selectedSoUri = data.getData();
             log("Selected: " + selectedSoUri.getPath());
-            btnRun.setEnabled(true);
+            refreshState();
         }
     }
 
@@ -106,29 +124,25 @@ public class MainActivity extends Activity {
 
     private void runExploit() {
         if (selectedSoUri == null) {
-            log("No .so selected");
+            log("No .so file selected");
             return;
         }
-        if (Shizuku.checkSelfPermission() != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+        if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
             log("Shizuku permission not granted");
             return;
         }
         try {
-            // Step 1: copy selected content:// file to /sdcard/Download/ (shell uid 2000 can read this)
-            String downloadPath = copyToDownload();
-            if (downloadPath == null) {
+            String src = copyToDownload();
+            if (src == null) {
                 log("Failed to copy to /sdcard/Download");
                 return;
             }
-            log("Copied to: " + downloadPath);
-
-            // Step 2: via Shizuku, move to /data/local/tmp and run exploit
+            log("Copied to: " + src);
             String dst = "/data/local/tmp/preload.so";
-            String cmd = "cp " + downloadPath + " " + dst + " && chmod 755 " + dst +
+            String cmd = "cp " + src + " " + dst + " && chmod 755 " + dst +
                     " && LD_PRELOAD=" + dst + " /system/bin/sh -c 'echo exploit_triggered'";
             log("Running: " + cmd);
-            execAsShell(cmd);
-            log("Exploit triggered");
+            runCommandInService(cmd);
         } catch (Exception e) {
             log("Error: " + e.getMessage());
         }
@@ -140,8 +154,7 @@ public class MainActivity extends Activity {
         if (is == null) return null;
 
         if (Build.VERSION.SDK_INT >= 29) {
-            // MediaStore for API 29+
-            android.content.ContentValues values = new android.content.ContentValues();
+            ContentValues values = new ContentValues();
             values.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName);
             values.put(MediaStore.MediaColumns.MIME_TYPE, "application/octet-stream");
             values.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
@@ -155,7 +168,6 @@ public class MainActivity extends Activity {
             is.close();
             return "/sdcard/Download/" + fileName;
         } else {
-            // Legacy direct write (API < 29)
             File dir = new File(Environment.getExternalStoragePublicDirectory(
                     Environment.DIRECTORY_DOWNLOADS), "GhostLockAAK");
             if (!dir.exists()) dir.mkdirs();
@@ -170,15 +182,32 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void execAsShell(String command) throws Exception {
-        String[] cmd = { "sh", "-c", command };
-        ParcelFileDescriptor pfd = Shizuku.newProcess(cmd, null, null);
-        BufferedReader reader = new BufferedReader(
-                new InputStreamReader(new FileInputStream(pfd.getFileDescriptor())));
-        String line;
-        while ((line = reader.readLine()) != null) {
-            log("  " + line);
-        }
-        reader.close();
+    private void runCommandInService(String cmd) {
+        ComponentName component = new ComponentName(getPackageName(), CommandService.class.getName());
+        Shizuku.UserServiceArgs args = new Shizuku.UserServiceArgs(component)
+                .daemon(false)
+                .processNameSuffix("ghostlock")
+                .version(1);
+        Shizuku.bindUserService(args, new ServiceConnection() {
+            @Override
+            public void onServiceConnected(ComponentName name, IBinder binder) {
+                log("UserService connected");
+                try {
+                    ICommandService service = ICommandService.Stub.asInterface(binder);
+                    String result = service.runCommand(cmd);
+                    log("Output:\n" + result);
+                } catch (Exception e) {
+                    log("Service error: " + e.getMessage());
+                }
+                try {
+                    Shizuku.unbindUserService(args, this, true);
+                } catch (Exception ignored) { }
+            }
+
+            @Override
+            public void onServiceDisconnected(ComponentName name) {
+                log("UserService disconnected");
+            }
+        });
     }
 }
