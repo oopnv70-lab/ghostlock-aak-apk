@@ -191,17 +191,27 @@ public class MainActivity extends Activity {
                         runOnUiThread(() -> log("写入 " + dst + (ok ? " 成功" : " 失败")));
                         if (ok) {
                             runOnUiThread(() -> log("正在运行 exploit（设备可能重启，请等待）..."));
-                            String result = service.runCommand(cmd);
-                            runOnUiThread(() -> log("输出:\n" + result));
+                            ICommandCallback callback = new ICommandCallback.Stub() {
+                                @Override
+                                public void onLine(String line) {
+                                    runOnUiThread(() -> log(line));
+                                }
+
+                                @Override
+                                public void onExit(int exitCode) {
+                                    runOnUiThread(() -> log("exit=" + exitCode));
+                                    runOnUiThread(() -> {
+                                        try {
+                                            Shizuku.unbindUserService(args, this, true);
+                                        } catch (Exception ignored) { }
+                                    });
+                                }
+                            };
+                            service.runCommandStream(cmd, callback);
                         }
                     } catch (Exception e) {
                         runOnUiThread(() -> log("服务错误: " + e.getMessage()));
                     }
-                    runOnUiThread(() -> {
-                        try {
-                            Shizuku.unbindUserService(args, this, true);
-                        } catch (Exception ignored) { }
-                    });
                 }).start();
             }
 

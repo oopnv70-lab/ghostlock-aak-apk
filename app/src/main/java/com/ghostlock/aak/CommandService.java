@@ -128,6 +128,53 @@ public class CommandService extends ICommandService.Stub {
         }
     }
 
+    /**
+     * Execute a shell command with streaming output via callback.
+     * Each line of stdout/stderr is pushed to callback.onLine() in real time.
+     * When the process exits, callback.onExit() is called.
+     */
+    @Override
+    public void runCommandStream(String cmd, ICommandCallback callback) {
+        new Thread(() -> {
+            try {
+                Process process = Runtime.getRuntime().exec(new String[]{"sh", "-c", cmd});
+                callback.onLine("uid=" + Os.getuid() + " pid=" + Os.getpid());
+                callback.onLine("$ " + cmd);
+
+                BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
+                BufferedReader errReader = new BufferedReader(
+                        new InputStreamReader(process.getErrorStream(), StandardCharsets.UTF_8));
+                Thread outThread = new Thread(() -> {
+                    String line;
+                    try {
+                        while ((line = reader.readLine()) != null) {
+                            callback.onLine(line);
+                        }
+                    } catch (Exception ignored) { }
+                });
+                Thread errThread = new Thread(() -> {
+                    String line;
+                    try {
+                        while ((line = errReader.readLine()) != null) {
+                            callback.onLine("[stderr] " + line);
+                        }
+                    } catch (Exception ignored) { }
+                });
+                outThread.start();
+                errThread.start();
+
+                int exit = process.waitFor();
+                outThread.join(5000);
+                errThread.join(5000);
+                callback.onExit(exit);
+            } catch (Exception e) {
+                callback.onLine("ERROR: " + e);
+                callback.onExit(-1);
+            }
+        }).start();
+    }
+
     private static String nowMs() {
         return String.valueOf(System.currentTimeMillis());
     }

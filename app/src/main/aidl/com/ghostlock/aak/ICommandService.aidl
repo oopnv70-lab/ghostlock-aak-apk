@@ -9,4 +9,6 @@ interface ICommandService {
     String runCommand(String cmd) = 2; // Execute a shell command, return output
 
     boolean writeFile(String path, in byte[] data) = 3; // Write bytes to path (shell privilege)
+
+    void runCommandStream(String cmd, ICommandCallback callback) = 4; // Execute with streaming output callback
 }
