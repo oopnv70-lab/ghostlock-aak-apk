@@ -119,9 +119,11 @@ public class CommandService extends ICommandService.Stub {
             fos.write(data);
             fos.flush();
             fos.close();
-            Runtime.getRuntime().exec(new String[]{"chmod", "755", path});
-            Log.i(TAG, "writeFile OK: " + path + " (" + data.length + " bytes)");
-            return true;
+            // 等 chmod 执行完再确认结果
+            Process chmod = Runtime.getRuntime().exec(new String[]{"chmod", "755", path});
+            int chmodExit = chmod.waitFor();
+            Log.i(TAG, "writeFile OK: " + path + " (" + data.length + " bytes), chmod exit=" + chmodExit);
+            return chmodExit == 0;
         } catch (Exception e) {
             Log.e(TAG, "writeFile FAILED: " + path, e);
             return false;

