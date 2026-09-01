@@ -138,8 +138,8 @@ public class CommandService extends ICommandService.Stub {
         new Thread(() -> {
             try {
                 Process process = Runtime.getRuntime().exec(new String[]{"sh", "-c", cmd});
-                callback.onLine("uid=" + Os.getuid() + " pid=" + Os.getpid());
-                callback.onLine("$ " + cmd);
+                safeLine(callback, "uid=" + Os.getuid() + " pid=" + Os.getpid());
+                safeLine(callback, "$ " + cmd);
 
                 BufferedReader reader = new BufferedReader(
                         new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
@@ -149,7 +149,7 @@ public class CommandService extends ICommandService.Stub {
                     String line;
                     try {
                         while ((line = reader.readLine()) != null) {
-                            callback.onLine(line);
+                            safeLine(callback, line);
                         }
                     } catch (Exception ignored) { }
                 });
@@ -157,7 +157,7 @@ public class CommandService extends ICommandService.Stub {
                     String line;
                     try {
                         while ((line = errReader.readLine()) != null) {
-                            callback.onLine("[stderr] " + line);
+                            safeLine(callback, "[stderr] " + line);
                         }
                     } catch (Exception ignored) { }
                 });
@@ -167,12 +167,30 @@ public class CommandService extends ICommandService.Stub {
                 int exit = process.waitFor();
                 outThread.join(5000);
                 errThread.join(5000);
-                callback.onExit(exit);
+                safeExit(callback, exit);
             } catch (Exception e) {
-                callback.onLine("ERROR: " + e);
-                callback.onExit(-1);
+                safeLine(callback, "ERROR: " + e);
+                safeExit(callback, -1);
             }
         }).start();
+    }
+
+    /** Call callback.onLine() with RemoteException handled. */
+    private static void safeLine(ICommandCallback callback, String line) {
+        try {
+            callback.onLine(line);
+        } catch (RemoteException re) {
+            Log.e(TAG, "callback.onLine failed", re);
+        }
+    }
+
+    /** Call callback.onExit() with RemoteException handled. */
+    private static void safeExit(ICommandCallback callback, int code) {
+        try {
+            callback.onExit(code);
+        } catch (RemoteException re) {
+            Log.e(TAG, "callback.onExit failed", re);
+        }
     }
 
     private static String nowMs() {
