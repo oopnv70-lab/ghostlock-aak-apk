@@ -184,6 +184,7 @@ public class MainActivity extends Activity {
             @Override
             public void onServiceConnected(ComponentName name, IBinder binder) {
                 log("UserService 已连接");
+                final ServiceConnection self = this;
                 new Thread(() -> {
                     try {
                         ICommandService service = ICommandService.Stub.asInterface(binder);
@@ -202,7 +203,7 @@ public class MainActivity extends Activity {
                                     runOnUiThread(() -> log("exit=" + exitCode));
                                     runOnUiThread(() -> {
                                         try {
-                                            Shizuku.unbindUserService(args, this, true);
+                                            Shizuku.unbindUserService(args, self, true);
                                         } catch (Exception ignored) { }
                                     });
                                 }
