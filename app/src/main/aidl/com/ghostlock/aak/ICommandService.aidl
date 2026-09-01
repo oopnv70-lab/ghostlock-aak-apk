@@ -1,5 +1,7 @@
 package com.ghostlock.aak;
 
+import com.ghostlock.aak.ICommandCallback;
+
 interface ICommandService {
 
     void destroy() = 16777114; // Destroy method defined by Shizuku server
