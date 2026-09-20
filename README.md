@@ -119,6 +119,19 @@ See the GNU General Public License for more details.
 
 ---
 
+## 第三方资源声明
+
+本项目的应用图标（启动器图标）使用了开源素材：
+
+- **图标**：Tabler Icons — `shield-lock`
+- **作者**：Paweł Kuna
+- **许可证**：MIT License（Copyright (c) 2020-2026 Paweł Kuna）
+- **来源**：https://github.com/tabler/tabler-icons
+
+图标的完整来源、许可证文本与与本仓库 GPLv3 的兼容性说明，详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
+---
+
 ## 安全与合规提醒
 
 - 公开此类漏洞利用相关代码存在被误用、举报或下架的风险，请评估后再决定分发范围。
