@@ -22,8 +22,15 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      # 说明：ubuntu-latest runner 已自带 Android SDK，无需 setup-android
+      # （android-actions/setup-android@v3 会执行 `sdkmanager "tools"`，
+      #   而新版 SDK 已移除 tools 包，会导致构建失败）
+      - name: Show Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          ls -d "$ANDROID_HOME"/platforms/* 2>/dev/null || true
+          ls -d "$ANDROID_HOME"/build-tools/* 2>/dev/null || true
 
       - name: Set up Gradle 8.7
         uses: gradle/actions/setup-gradle@v4
@@ -43,14 +50,8 @@ jobs:
           KS_PATH: ${{ runner.temp }}/ks/release.p12
           KS_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
           KS_ALIAS: ${{ secrets.KEY_ALIAS }}
-        run: |
-          gradle assembleRelease --no-daemon \
-            -Pandroid.injected.signing.store.file="$KS_PATH" \
-            -Pandroid.injected.signing.store.password="$KS_PASS" \
-            -Pandroid.injected.signing.key.alias="$KS_ALIAS" \
-            -Pandroid.injected.signing.key.password="$KS_PASS"
+        run: gradle assembleRelease --no-daemon
 
-      # 列出产物，方便排查
       - name: List APK outputs
         run: find app/build/outputs/apk -type f -name '*.apk' -exec ls -la {} \;
 
