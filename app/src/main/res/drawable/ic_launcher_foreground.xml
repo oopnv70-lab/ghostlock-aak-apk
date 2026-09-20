@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  图标素材来源：Tabler Icons — shield-lock
+  https://github.com/tabler/tabler-icons/blob/main/icons/outline/shield-lock.svg
+  许可证：MIT License
+  Copyright (c) 2020-2026 Paweł Kuna
+  本文件为原 SVG 转换为 Android VectorDrawable 格式，图形内容未改动。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <group
+        android:scaleX="2.2"
+        android:scaleY="2.2"
+        android:translateX="-14.4"
+        android:translateY="-14.4">
+        <path
+            android:pathData="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="2"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:fillColor="#00000000" />
+        <path
+            android:pathData="M11 11a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="2"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:fillColor="#00000000" />
+        <path
+            android:pathData="M12 12l0 2.5"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="2"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:fillColor="#00000000" />
+    </group>
+</vector>
