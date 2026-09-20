@@ -14,6 +14,23 @@ android {
         versionName "1.0"
     }
 
+    // 签名配置：从 CI 环境变量读取 keystore 信息
+    // - 若环境变量缺失（本地普通构建），release 会退回 debug 签名，不会中断构建
+    signingConfigs {
+        release {
+            def ksPath  = System.getenv("KS_PATH")
+            def ksPass  = System.getenv("KS_PASS")
+            def ksAlias = System.getenv("KS_ALIAS")
+            if (ksPath != null && ksPass != null && ksAlias != null) {
+                storeFile file(ksPath)
+                storePassword ksPass
+                keyAlias ksAlias
+                keyPassword ksPass
+                storeType "PKCS12"
+            }
+        }
+    }
+
     buildFeatures {
         aidl true
     }
@@ -21,6 +38,13 @@ android {
     buildTypes {
         release {
             minifyEnabled false
+            // 有签名配置就用正式签名，否则退回 debug
+            def ksPath = System.getenv("KS_PATH")
+            if (ksPath != null) {
+                signingConfig signingConfigs.release
+            } else {
+                signingConfig signingConfigs.debug
+            }
         }
     }
     compileOptions {
